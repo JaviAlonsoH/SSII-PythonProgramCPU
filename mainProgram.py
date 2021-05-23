@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 import matplotlib.pyplot as plt
 import sys
 
+#Prueba de pull
 
 class MyWindow(QMainWindow):
     def __init__(self):
