@@ -1,6 +1,8 @@
 from tkinter import *
 import tkinter as tk
 from tkinter import ttk
+
+import matplotlib.pyplot
 from tkintertable import TableCanvas, TableModel
 import array as arr
 import matplotlib.pyplot as plt
@@ -40,7 +42,7 @@ class Win(tk.Tk):
         self.lbl_exe_time = tk.Label(self.c, text='Tiempo de ejecución: ', bg='#d1d1d1')
         self.inputBox_exe_time = tk.Entry(self.c)
 
-        self.btnSaveData= tk.Button(self.c, text="Guardar Proceso", width=20, command=self.SaveData)
+        self.btnSaveData = tk.Button(self.c, text="Guardar Proceso", width=20, command=self.SaveData)
 
         self.btnGenSim = tk.Button(self.c, text="Generar Gráfica", width=25, height=2, command=self.ShowData)
 
@@ -53,7 +55,6 @@ class Win(tk.Tk):
         self.roundRobin = tk.Radiobutton(self.c, text="Round Robin", value=3, bg='#d1d1d1', variable=self.opt)
 
         self.opt.set(None)
-
 
         self.c.create_window(100, 70, window=self.lbl_proc_number)
         self.c.create_window(300, 70, window=self.inputBox_proc_number)
@@ -94,22 +95,26 @@ class Win(tk.Tk):
         self.data_table = {
         }
 
+        self.key = ""
+        self.counter = 1
+
     def onSelect(self):
         self.processes = []
         self.num_processes = int(self.inputBox_proc_number.get())
         cont = 1
         while len(self.processes) < self.num_processes:
-            nom = 'Proceso ' + str(cont)
-            self.processes.append(nom)
+            self.key = 'Proceso ' + str(cont)
+            self.processes.append(self.key)
             cont += 1
         self.inputBox_proc_number.clipboard_clear()
-        self.comboBox_processes['values'] = (self.processes)
-        print(self.processes)
+        self.comboBox_processes['values'] = self.processes
+        print("Procesos: " + str(self.processes))
 
+        ## PONER LA KEY CONTADOR EN LA ADICION DE REGISTROS EN EL DICCIONARIO
 
     def SaveData(self):
         self.arrive_time = self.inputBox_arrive_time.get()
-        self.exe_time = (self.inputBox_exe_time.get())
+        self.exe_time = self.inputBox_exe_time.get()
         self.inputBox_exe_time.delete(0, 'end')
         self.inputBox_arrive_time.delete(0, 'end')
 
@@ -120,24 +125,31 @@ class Win(tk.Tk):
         self.P = int(self.response_time) / int(self.exe_time)
         self.R = int(self.exe_time) / int(self.response_time)
 
+        # ALGORITMO FIFO #
+
         res = not self.data_table
 
+        proceso = 'Proceso '
+        print(self.counter)
+
         if res:
-            row = {'Llegada': self.arrive_time, 'T. Ejecución': self.exe_time, 'Inicio': self.ini,
-                   'Fin': self.end,
+            row = {'Llegada': self.arrive_time, 'T. Ejecución': self.exe_time, 'Inicio': int(self.arrive_time) - int(self.wait_time),
+                   'Fin': int(self.arrive_time) + int(self.wait_time) + int(self.exe_time),
                    'T. Respuesta': self.response_time, 'T. Espera': self.wait_time, 'Penalización': self.P}
             self.data_table[self.comboBox_processes.get()] = row
 
         else:
-            for i in self.data_table.keys():
-                    row = {'Llegada': self.arrive_time, 'T. Ejecución': self.exe_time,
-                                'Inicio': self.data_table[i]['Fin'], 'Fin': self.end,
-                                'T. Respuesta': int(self.data_table[i]['T']) + int(self.response_time),
-                                'T. Espera': self.wait_time, 'Penalización': self.P}
-                    self.data_table[i] = row
+            row = {'Llegada': self.arrive_time, 'T. Ejecución': self.exe_time, 'Inicio': self.data_table[proceso +
+                str(self.counter - 1)]['Fin'], 'Fin': int(self.data_table[proceso + str(self.counter - 1)]['Fin']) +
+                int(self.wait_time) + int(self.exe_time),
+                'T. Respuesta': int(self.data_table[proceso + str(self.counter - 1)]['Fin']) - int(
+                self.arrive_time) + int(self.exe_time),
+                'T. Espera': int(self.data_table[proceso + str(self.counter - 1)]['Fin']) - int(
+                self.arrive_time), 'Penalización': self.P}
+            self.data_table[self.comboBox_processes.get()] = row
 
+        self.counter += 1
         print(self.data_table)
-
 
         # DATA WINDOW
 
@@ -148,18 +160,27 @@ class Win(tk.Tk):
         root.geometry('1200x1000')
         root.title('CPU Process Graphic Representation')
 
-        canvasData = tk.Canvas(root,height=0, width=1100)
+        canvasData = tk.Canvas(root, height=0, width=1100)
         canvasData.pack()
 
         # PLOT
-
         xs = np.linspace(1, 21, 200)
 
         plot = plt.figure(figsize=(12, 6))
         a = plot.add_subplot(111)
+        axes = plt.gca()
+        axes.set_ylim(self.processes[0], self.processes[-1])
+        for x in self.processes:
+            for i in self.data_table.keys():
+                start = int(self.data_table[i]['Inicio'])
+                end = int(self.data_table[i]['Fin'])
+                a.hlines(y=x, xmin=start, xmax=end,
+                         colors='green',
+                         linestyles='-', lw=20, label='Proceso en ejecución')
+
         a.hlines(y=35, xmin=100, xmax=175, colors='green', linestyles='-', lw=14, label='Single Short Line')
         a.hlines(y=[39, 40, 41], xmin=[0, 25, 50], xmax=[len(xs)], colors='purple', linestyles='--', lw=2,
-                   label='Multiple Lines')
+                 label='Multiple Lines')
         a.legend(bbox_to_anchor=(0.5, 1.3), loc="upper center", borderaxespad=5)
         a.grid()
         canvas = FigureCanvasTkAgg(plot, master=root)
@@ -177,10 +198,7 @@ class Win(tk.Tk):
 
         table.show()
 
-
         # TABLE
-
-
 
 
 if __name__ == "__main__":
