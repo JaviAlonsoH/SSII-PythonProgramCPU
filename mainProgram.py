@@ -1,3 +1,4 @@
+import _tkinter
 from tkinter import *
 import tkinter as tk
 from tkinter import ttk
@@ -51,10 +52,10 @@ class Win(tk.Tk):
         self.opt = IntVar()
 
         self.fifo = tk.Radiobutton(self.c, text="FIFO", value=1, bg='#d1d1d1', variable=self.opt)
-        self.sjf = tk.Radiobutton(self.c, text="SJF", value=2, bg='#d1d1d1', variable=self.opt)
-        self.roundRobin = tk.Radiobutton(self.c, text="Round Robin", value=3, bg='#d1d1d1', variable=self.opt)
 
         self.opt.set(None)
+
+        # SHOW ELEMENTS
 
         self.c.create_window(100, 70, window=self.lbl_proc_number)
         self.c.create_window(300, 70, window=self.inputBox_proc_number)
@@ -70,8 +71,6 @@ class Win(tk.Tk):
         self.c.create_window(300, 230, window=self.inputBox_exe_time)
 
         self.c.create_window(700, 100, window=self.fifo)
-        self.c.create_window(700, 150, window=self.sjf)
-        self.c.create_window(700, 200, window=self.roundRobin)
 
         self.c.create_window(300, 280, window=self.btnSaveData)
 
@@ -108,7 +107,6 @@ class Win(tk.Tk):
             cont += 1
         self.inputBox_proc_number.clipboard_clear()
         self.comboBox_processes['values'] = self.processes
-        print("Procesos: " + str(self.processes))
 
         ## PONER LA KEY CONTADOR EN LA ADICION DE REGISTROS EN EL DICCIONARIO
 
@@ -126,18 +124,13 @@ class Win(tk.Tk):
         self.R = int(self.exe_time) / int(self.response_time)
 
         # ALGORITMO FIFO #
-
         res = not self.data_table
-
         proceso = 'Proceso '
-        print(self.counter)
-
         if res:
             row = {'Llegada': self.arrive_time, 'T. Ejecución': self.exe_time, 'Inicio': int(self.arrive_time) - int(self.wait_time),
                    'Fin': int(self.arrive_time) + int(self.wait_time) + int(self.exe_time),
                    'T. Respuesta': self.response_time, 'T. Espera': self.wait_time, 'Penalización': self.P}
             self.data_table[self.comboBox_processes.get()] = row
-
         else:
             row = {'Llegada': self.arrive_time, 'T. Ejecución': self.exe_time, 'Inicio': self.data_table[proceso +
                 str(self.counter - 1)]['Fin'], 'Fin': int(self.data_table[proceso + str(self.counter - 1)]['Fin']) +
@@ -145,11 +138,11 @@ class Win(tk.Tk):
                 'T. Respuesta': int(self.data_table[proceso + str(self.counter - 1)]['Fin']) - int(
                 self.arrive_time) + int(self.exe_time),
                 'T. Espera': int(self.data_table[proceso + str(self.counter - 1)]['Fin']) - int(
-                self.arrive_time), 'Penalización': self.P}
+                self.arrive_time), 'Penalización': int(self.response_time) / int(self.exe_time)}
             self.data_table[self.comboBox_processes.get()] = row
-
         self.counter += 1
-        print(self.data_table)
+
+
 
         # DATA WINDOW
 
@@ -163,39 +156,41 @@ class Win(tk.Tk):
         canvasData = tk.Canvas(root, height=0, width=1100)
         canvasData.pack()
 
-        # PLOT
+        # PLOT FIFO
         xs = np.linspace(1, 21, 200)
-
         plot = plt.figure(figsize=(12, 6))
         a = plot.add_subplot(111)
         axes = plt.gca()
-        axes.set_ylim(self.processes[0], self.processes[-1])
-        for x in self.processes:
-            for i in self.data_table.keys():
-                start = int(self.data_table[i]['Inicio'])
-                end = int(self.data_table[i]['Fin'])
-                a.hlines(y=x, xmin=start, xmax=end,
-                         colors='green',
-                         linestyles='-', lw=20, label='Proceso en ejecución')
-
-        a.hlines(y=35, xmin=100, xmax=175, colors='green', linestyles='-', lw=14, label='Single Short Line')
-        a.hlines(y=[39, 40, 41], xmin=[0, 25, 50], xmax=[len(xs)], colors='purple', linestyles='--', lw=2,
-                 label='Multiple Lines')
+        for i, ax in enumerate(self.processes):
+            axes.set_ylabel(str(i))
+        startList = []
+        endList = []
+        waitList = []
+        for i in self.data_table.keys():
+            start = int(self.data_table[i]['Inicio'])
+            end = int(self.data_table[i]['Fin'])
+            wait = int(self.data_table[i]['Llegada'])
+            waitList.append(wait)
+            startList.append(start)
+            endList.append(end)
+        print(startList, endList, waitList)
+        a.hlines(y=self.processes, xmin=waitList, xmax=startList,
+                 colors='purple',
+                 linestyles='--', lw=20, label='Tiempo de espera')
+        a.hlines(y=self.processes, xmin=startList, xmax=endList,
+                 colors='green',
+                 linestyles='-', lw=20, label='Proceso en ejecución')
         a.legend(bbox_to_anchor=(0.5, 1.3), loc="upper center", borderaxespad=5)
         a.grid()
+        plot.gca().invert_yaxis()
         canvas = FigureCanvasTkAgg(plot, master=root)
         canvas.get_tk_widget().pack()
         canvas.draw()
-
-        # TABLE
-
+        # TABLE FIFO
         tbl_frame = tk.Frame(root, width=1000, height=550, bg="lightcoral")
         tbl_frame.pack(side=tk.BOTTOM)
         model = TableModel()
         table = TableCanvas(tbl_frame, model=model, data=self.data_table, editable=False, width=1000, height=300)
-        x = self.data_table.keys()
-        print(x)
-
         table.show()
 
         # TABLE
